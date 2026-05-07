@@ -5,9 +5,32 @@ import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { createClient } from '@supabase/supabase-js';
 import { Link } from 'expo-router';
+import { useState } from 'react';
+
+
+
 
 export default function HomeScreen() {
+
+  const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.EXPO_PUBLIC_SUPABASE_KEY!
+);
+  const [salaData, setSalaData] = useState<any[]>([]);
+      
+        const fetchData = async () => {
+          const { data, error } = await supabase.from('sala').select('*');
+          if (error) {
+            console.error('Error fetching data:', error);
+          } else {
+            setSalaData(data);
+          }
+        }
+      
+        fetchData();
+  
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -74,6 +97,13 @@ export default function HomeScreen() {
           <ThemedText type="defaultSemiBold">app-example</ThemedText>.
         </ThemedText>
       </ThemedView>
+
+
+      
+
+               {salaData.map((sala) => (
+        <ThemedText key={sala.id_sala}>id: {sala.id_sala}, {sala.nombre_sala}, {sala.descripcion}</ThemedText>
+      ))}
     </ParallaxScrollView>
   );
 }
