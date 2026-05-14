@@ -1,14 +1,16 @@
 import bcrypt from 'bcryptjs'
-import { supabase } from '../lib/supabase'
+import jwt from 'jsonwebtoken'
+import { supabase } from '../supabase.js'
+
+// Clave secreta global
+const SECRET_KEY = process.env.SECRET_KEY
 
 // Registro de usuario
-export async function registrarUsuario({ nombre_completo, ci, correo, contrasena }) {
-  // Encriptar contraseña
+export async function registrarUsuario({ nombre_completo, ci, correo, contrasena, id_rol }) {
   const contrasenaEncriptada = bcrypt.hashSync(contrasena, 10)
 
-  // Validar correo único
   const { data: usuarioExistente } = await supabase
-    .from('Usuario')
+    .from('usuario')
     .select('id_usuario')
     .eq('correo', correo)
     .single()
@@ -17,9 +19,8 @@ export async function registrarUsuario({ nombre_completo, ci, correo, contrasena
     return { exito: false, mensaje: 'El correo ya está registrado' }
   }
 
-  // Insertar usuario
   const { data, error } = await supabase
-    .from('Usuario')
+    .from('usuario')
     .insert([
       {
         nombre_completo,
@@ -27,7 +28,7 @@ export async function registrarUsuario({ nombre_completo, ci, correo, contrasena
         correo,
         contrasena: contrasenaEncriptada,
         estado_usuario: 'activo',
-        id_rol: 1 // rol por defecto
+        id_rol 
       }
     ])
 
@@ -38,7 +39,7 @@ export async function registrarUsuario({ nombre_completo, ci, correo, contrasena
 // Inicio de sesión
 export async function iniciarSesion({ correo, contrasena }) {
   const { data: usuario, error } = await supabase
-    .from('Usuario')
+    .from('usuario')
     .select('*')
     .eq('correo', correo)
     .single()
@@ -52,5 +53,12 @@ export async function iniciarSesion({ correo, contrasena }) {
     return { exito: false, mensaje: 'Contraseña incorrecta' }
   }
 
-  return { exito: true, usuario }
+  // Generar token JWT
+  const token = jwt.sign(
+    { id_usuario: usuario.id_usuario, rol: usuario.id_rol },
+    SECRET_KEY,
+    { expiresIn: '2h' }
+  )
+
+  return { exito: true, usuario, token }
 }
