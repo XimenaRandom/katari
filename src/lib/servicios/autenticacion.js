@@ -7,15 +7,49 @@ const SECRET_KEY = process.env.SECRET_KEY
 
 // Registro de usuario
 export async function registrarUsuario({ nombre_completo, ci, correo, contrasena, id_rol }) {
+  // 🔹 Validaciones básicas
+  if (!nombre_completo || nombre_completo.trim() === '') {
+    return { exito: false, mensaje: 'El nombre completo es obligatorio' }
+  }
+  if (!ci || ci.trim() === '') {
+    return { exito: false, mensaje: 'El CI es obligatorio' }
+  }
+  if (!correo || correo.trim() === '') {
+    return { exito: false, mensaje: 'El correo es obligatorio' }
+  }
+  if (!contrasena || contrasena.trim() === '') {
+    return { exito: false, mensaje: 'La contraseña es obligatoria' }
+  }
+  if (contrasena.length < 8) {
+    return { exito: false, mensaje: 'La contraseña debe tener al menos 8 caracteres' }
+  }
+  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/
+  if (!regex.test(contrasena)) {
+    return { exito: false, mensaje: 'La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales' }
+  }
+  if (!id_rol) {
+    return { exito: false, mensaje: 'Debe seleccionar un rol válido' }
+  }
+
   const contrasenaEncriptada = bcrypt.hashSync(contrasena, 10)
 
-  const { data: usuarioExistente } = await supabase
+  const { data: ciExistente } = await supabase
+    .from('usuario')
+    .select('id_usuario')
+    .eq('ci', ci)
+    .single()
+
+  if (ciExistente) {
+    return { exito: false, mensaje: 'El CI ya está registrado' }
+  }
+
+  const { data: correoExistente } = await supabase
     .from('usuario')
     .select('id_usuario')
     .eq('correo', correo)
     .single()
 
-  if (usuarioExistente) {
+  if (correoExistente) {
     return { exito: false, mensaje: 'El correo ya está registrado' }
   }
 
@@ -28,7 +62,7 @@ export async function registrarUsuario({ nombre_completo, ci, correo, contrasena
         correo,
         contrasena: contrasenaEncriptada,
         estado_usuario: 'activo',
-        id_rol 
+        id_rol
       }
     ])
 
@@ -37,17 +71,27 @@ export async function registrarUsuario({ nombre_completo, ci, correo, contrasena
 }
 
 // Inicio de sesión
-export async function iniciarSesion({ correo, contrasena }) {
+export async function iniciarSesion({ ci, contrasena }) {
+  // Validaciones básicas
+  if (!ci || ci.trim() === '') {
+    return { exito: false, mensaje: 'El CI es obligatorio' }
+  }
+  if (!contrasena || contrasena.trim() === '') {
+    return { exito: false, mensaje: 'La contraseña es obligatoria' }
+  }
+
+  // Buscar usuario por CI
   const { data: usuario, error } = await supabase
     .from('usuario')
     .select('*')
-    .eq('correo', correo)
+    .eq('ci', ci)
     .single()
 
   if (error || !usuario) {
     return { exito: false, mensaje: 'Usuario no encontrado' }
   }
 
+  // Validar contraseña
   const contrasenaValida = bcrypt.compareSync(contrasena, usuario.contrasena)
   if (!contrasenaValida) {
     return { exito: false, mensaje: 'Contraseña incorrecta' }
